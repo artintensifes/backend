@@ -43,7 +43,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from transformers import pipeline
 
 # Initialize Firebase
-cred = credentials.Certificate("serviceAccountKey.json")  
+cred = credentials.Certificate("FIREBASE_KEY")  
 firebase_admin.initialize_app(cred, {
     "databaseURL": "https://tomnet-amg-default-rtdb.europe-west1.firebasedatabase.app/"
 })
