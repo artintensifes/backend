@@ -59,9 +59,17 @@ def get_note(document_id: str):
         raise HTTPException(status_code=400, detail="❌ Note content is empty")
 
     try:
-        # Generate a question using T5 Model
-        question_text = "generate question: " + content
-        generated_question = question_generator(question_text, max_length=50, num_return_sequences=1)
+        # # Generate a question using T5 Model
+        # question_text = "generate question: " + content
+        question_text = (
+            "Generate a creative and thought-provoking question based on the following text, "
+            "suitable for an exam or quiz: " + content
+        )
+
+        generated_questions = question_generator(
+        question_text, max_length=60, num_return_sequences=3
+        )
+
 
         return {
             "document_id": document_id,
