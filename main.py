@@ -60,3 +60,9 @@ def get_note(document_id: str):
         "content": content,
         "question": generated_question[0]['generated_text'] if generated_question else "⚠ No valid question generated."
     }
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))  # Default to 10000 if PORT is not set
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
