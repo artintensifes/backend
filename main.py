@@ -34,6 +34,11 @@ print("⏳ Loading AI Model...")
 question_generator = pipeline("text2text-generation", model="mrm8488/t5-base-finetuned-question-generation-ap")
 print("✅ AI Model Loaded Successfully!")
 
+@app.get("/healthz")
+def health_check():
+    """Render uses this route to check if the service is running."""
+    return {"status": "ok"}
+
 @app.get("/get_note/{document_id}")
 def get_note(document_id: str):
     """Fetches a note from Firebase and generates a question using AI."""
@@ -65,4 +70,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Default to 10000 if PORT is not set
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=port)
-
