@@ -43,8 +43,8 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/get_note/{document_id}")
-def get_note(document_id: str):
-    """Fetches a note from Firebase and generates a question using AI."""
+def get_note(document_id: str, num_questions: int = 3):
+    """Fetches a note from Firebase and generates multiple creative questions using AI."""
     
     # Fetch note from Firebase
     notes_ref = db.reference(f"notes/{document_id}")
@@ -59,24 +59,32 @@ def get_note(document_id: str):
         raise HTTPException(status_code=400, detail="❌ Note content is empty")
 
     try:
-        # # Generate a question using T5 Model
-        # question_text = "generate question: " + content
+        # Generate a more creative and thought-provoking question
         question_text = (
-            "Generate a creative and thought-provoking question based on the following text, "
-            "suitable for an exam or quiz: " + content
+            "Generate a creative, thought-provoking exam question based on the following text: " + content
         )
 
+        # Generate multiple questions
         generated_questions = question_generator(
-        question_text, max_length=60, num_return_sequences=3
+            question_text,
+            max_length=60,
+            num_return_sequences=num_questions,
+            do_sample=True,  # Enables sampling for diversity
+            top_k=50,        # Limits selection to top 50 words
+            top_p=0.95,      # Nucleus sampling for variety
+            temperature=1.0   # Controls creativity (1.2 for even more diversity)
         )
 
+        # Extract generated question texts
+        questions = [q["generated_text"] for q in generated_questions]
 
         return {
             "document_id": document_id,
             "topic": note_data.get("topic", ""),
             "content": content,
-            "question": generated_question[0]['generated_text'] if generated_question else "⚠ No valid question generated."
+            "questions": questions  # Returns an array of multiple creative questions
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"🔥 AI Model Error: {str(e)}")
 
@@ -84,7 +92,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Default to 10000 if PORT is not set
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=port)
-
 
 # from fastapi import FastAPI
 # import os
