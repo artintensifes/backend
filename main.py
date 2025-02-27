@@ -53,48 +53,54 @@ def health_check():
     """Render uses this route to check if the service is running."""
     return {"status": "ok"}
 
-@app.get("/get_note/{document_id}", tags=["Notes"])
-def get_note(document_id: str, num_questions: int = 3):
-    """Fetches a note from Firebase and generates multiple creative exam questions using AI."""
+# @app.get("/get_note/{document_id}", tags=["Notes"])
+# def get_note(document_id: str, num_questions: int = 3):
+#     """Fetches a note from Firebase and generates multiple creative exam questions using AI."""
     
-    # Fetch note from Firebase
-    try:
-        notes_ref = db.reference("notes").child(document_id)  # Correct path
-        note_data = notes_ref.get()
+#     # Fetch note from Firebase
+#     try:
+#         notes_ref = db.reference("notes").child(document_id)  # Correct path
+#         note_data = notes_ref.get()
 
-        if not note_data:
-            raise HTTPException(status_code=404, detail=f"❌ Note '{document_id}' not found.")
+#         if not note_data:
+#             raise HTTPException(status_code=404, detail=f"❌ Note '{document_id}' not found.")
 
-        content = note_data.get("content", "").strip()
+#         content = note_data.get("content", "").strip()
 
-        if not content:
-            raise HTTPException(status_code=400, detail="❌ Note content is empty.")
+#         if not content:
+#             raise HTTPException(status_code=400, detail="❌ Note content is empty.")
 
-        # Generate creative exam questions
-        question_prompt = f"Generate {num_questions} diverse and creative exam questions based on: {content}"
+#         # Generate creative exam questions
+#         question_prompt = f"Generate {num_questions} diverse and creative exam questions based on: {content}"
 
-        generated_questions = question_generator(
-            question_prompt,
-            max_length=80,
-            num_return_sequences=num_questions,
-            do_sample=True,
-            top_k=50,
-            top_p=0.95,
-            temperature=1.2
-        )
+#         generated_questions = question_generator(
+#             question_prompt,
+#             max_length=80,
+#             num_return_sequences=num_questions,
+#             do_sample=True,
+#             top_k=50,
+#             top_p=0.95,
+#             temperature=1.2
+#         )
 
-        questions = [q["generated_text"] for q in generated_questions]
+#         questions = [q["generated_text"] for q in generated_questions]
 
-        return {
-            "document_id": document_id,
-            "topic": note_data.get("topic", ""),
-            "content": content,
-            "questions": questions
-        }
+#         return {
+#             "document_id": document_id,
+#             "topic": note_data.get("topic", ""),
+#             "content": content,
+#             "questions": questions
+#         }
 
-    except Exception as e:
-        print(f"🔥 Error fetching/generating questions: {e}")
-        raise HTTPException(status_code=500, detail=f"🔥 AI Model Error: {str(e)}")
+#     except Exception as e:
+#         print(f"🔥 Error fetching/generating questions: {e}")
+#         raise HTTPException(status_code=500, detail=f"🔥 AI Model Error: {str(e)}")
+@app.get("/test_firebase")
+def test_firebase():
+    notes_ref = db.reference("notes")
+    all_notes = notes_ref.get()
+    return {"notes": all_notes}
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))  # Default to port 10000
