@@ -5,14 +5,15 @@ import firebase_admin
 from firebase_admin import credentials, db
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import pipeline
+import uvicorn
 
 # Initialize FastAPI
-app = FastAPI()
+app = FastAPI(title="DAI-Model API", description="AI-powered Exam Question Generator", version="1.0")
 
-# Enable CORS (Set allow_origins to your frontend domain for security)
+# Enable CORS (Replace "*" with your frontend domain in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change "*" to your frontend domain in production
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,50 +22,57 @@ app.add_middleware(
 # Firebase Setup
 firebase_key = os.getenv("FIREBASE_KEY")
 
-if firebase_key:
+if not firebase_key:
+    print("❌ ERROR: Firebase key is missing! Check your environment variables.")
+    raise ValueError("Firebase key is required.")
+
+try:
     cred = credentials.Certificate(json.loads(firebase_key))
     firebase_admin.initialize_app(cred, {
         "databaseURL": "https://tomnet-amg-default-rtdb.europe-west1.firebasedatabase.app/"
     })
-else:
-    raise ValueError("❌ ERROR: Firebase key is missing!")
+    print("✅ Firebase Initialized Successfully!")
+except Exception as e:
+    print(f"🔥 Firebase Initialization Error: {e}")
+    raise ValueError("Failed to initialize Firebase.")
 
 # Load AI Model on Startup
 @app.on_event("startup")
 async def load_model():
     global question_generator
     print("⏳ Loading AI Model...")
-    question_generator = pipeline("text2text-generation", model="mrm8488/t5-base-finetuned-question-generation-ap")
-    print("✅ AI Model Loaded Successfully!")
+    try:
+        question_generator = pipeline("text2text-generation", model="mrm8488/t5-base-finetuned-question-generation-ap")
+        print("✅ AI Model Loaded Successfully!")
+    except Exception as e:
+        print(f"🔥 AI Model Loading Failed: {e}")
+        raise ValueError("Failed to load AI model.")
 
-@app.get("/healthz")
+@app.get("/healthz", tags=["Health Check"])
 def health_check():
     """Render uses this route to check if the service is running."""
     return {"status": "ok"}
 
-@app.get("/get_note/{document_id}")
+@app.get("/get_note/{document_id}", tags=["Notes"])
 def get_note(document_id: str, num_questions: int = 3):
-    """Fetches a note from Firebase and generates multiple creative questions using AI."""
+    """Fetches a note from Firebase and generates multiple creative exam questions using AI."""
     
     # Fetch note from Firebase
-    notes_ref = db.reference(f"notes/{document_id}")
-    note_data = notes_ref.get()
-
-    if not note_data:
-        raise HTTPException(status_code=404, detail="❌ Document not found")
-
-    content = note_data.get("content", "").strip()
-
-    if not content:
-        raise HTTPException(status_code=400, detail="❌ Note content is empty")
-
     try:
-        # Generate a more creative and thought-provoking question
-        question_prompt = (
-            f"Generate {num_questions} diverse and creative exam questions based on the following content: {content}"
-        )
+        notes_ref = db.reference("notes").child(document_id)  # Correct path
+        note_data = notes_ref.get()
 
-        # Generate multiple questions
+        if not note_data:
+            raise HTTPException(status_code=404, detail=f"❌ Note '{document_id}' not found.")
+
+        content = note_data.get("content", "").strip()
+
+        if not content:
+            raise HTTPException(status_code=400, detail="❌ Note content is empty.")
+
+        # Generate creative exam questions
+        question_prompt = f"Generate {num_questions} diverse and creative exam questions based on: {content}"
+
         generated_questions = question_generator(
             question_prompt,
             max_length=80,
@@ -75,20 +83,19 @@ def get_note(document_id: str, num_questions: int = 3):
             temperature=1.2
         )
 
-        # Extract generated question texts
         questions = [q["generated_text"] for q in generated_questions]
 
         return {
             "document_id": document_id,
             "topic": note_data.get("topic", ""),
             "content": content,
-            "questions": questions  # Returns an array of multiple creative questions
+            "questions": questions
         }
 
     except Exception as e:
+        print(f"🔥 Error fetching/generating questions: {e}")
         raise HTTPException(status_code=500, detail=f"🔥 AI Model Error: {str(e)}")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Default to 10000 if PORT is not set
-    import uvicorn
+    port = int(os.getenv("PORT", 10000))  # Default to port 10000
     uvicorn.run(app, host="0.0.0.0", port=port)
